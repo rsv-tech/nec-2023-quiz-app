@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEC 2023 Quiz App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Set theme on page load to prevent FOUC
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
+    <style>
+        :root {
+            --confetti-color-1: #3b82f6; /* blue-500 */
+            --confetti-color-2: #22c55e; /* green-500 */
+            --confetti-color-3: #f59e0b; /* amber-500 */
+            --confetti-color-4: #ef4444; /* red-500 */
+        }
+        .dark {
+            --confetti-color-1: #60a5fa; /* blue-400 */
+            --confetti-color-2: #4ade80; /* green-400 */
+            --confetti-color-3: #fcd34d; /* amber-300 */
+            --confetti-color-4: #f87171; /* red-400 */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+        .perspective {
+            perspective: 1000px;
+        }
+        .preserve-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .ios-shadow {
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^0.14.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <div id="root" class="bg-gray-100 dark:bg-gradient-to-br dark:from-gray-900 dark:to-blue-900/50 min-h-screen"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
