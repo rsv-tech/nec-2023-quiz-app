@@ -173,23 +173,36 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               ? (choice.text_en ?? '')
               : (choice.text_ru || choice.text_en || '');
 
+          const isCorrect = choice.is_correct;
+
+          // Логика оформления
+          let buttonClasses = 'w-full text-left p-6 rounded-2xl border-2 transition-all select-none ';
+          if (showResult) {
+            // После ответа — всё заблокировано
+            if (isCorrect) {
+              buttonClasses += 'border-green-500 bg-green-500/10 cursor-default';
+            } else if (isSelected && !isCorrect) {
+              buttonClasses += 'border-red-500 bg-red-500/10 cursor-default';
+            } else {
+              buttonClasses += 'border-gray-300 dark:border-gray-700 cursor-default opacity-70';
+            }
+          } else {
+            // До ответа
+            if (isSelected) {
+              buttonClasses += 'border-blue-500 bg-blue-500/10';
+            } else {
+              buttonClasses += 'border-gray-300 dark:border-gray-700 hover:border-blue-500';
+            }
+          }
+
           return (
             <motion.button
               key={choice.id}
               onClick={() => handleChoiceClick(choice)}
-              disabled={showResult}
-              whileTap={{ scale: 0.98 }}
-              className={`
-                w-full text-left p-6 rounded-2xl border-2 transition-all
-                ${isSelected
-                  ? choice.is_correct
-                    ? 'border-green-500 bg-green-500/10'
-                    : 'border-red-500 bg-red-500/10'
-                  : 'border-gray-300 dark:border-gray-700 hover:border-blue-500'}
-                ${showResult && choice.is_correct ? 'ring-4 ring-green-500/30' : ''}
-                ${showResult && isSelected && !choice.is_correct ? 'ring-4 ring-red-500/30' : ''}
-                ${showResult ? 'cursor-default opacity-95' : ''}
-              `}
+              disabled={showResult} // блокировка кликов после ответа
+              whileHover={{}} // убираем анимации
+              whileTap={{}}   // убираем движения при нажатии
+              className={buttonClasses}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -198,8 +211,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                   </span>
                   <span className="text-lg">{cText}</span>
                 </div>
-                {showResult && choice.is_correct && <CheckIcon className="h-8 w-8 text-green-600" />}
-                {showResult && isSelected && !choice.is_correct && <CrossIcon className="h-8 w-8 text-red-600" />}
+
+                {/* Иконки результата — только после ответа */}
+                {showResult && isCorrect && (
+                  <CheckIcon className="h-8 w-8 text-green-600" />
+                )}
+                {showResult && isSelected && !isCorrect && (
+                  <CrossIcon className="h-8 w-8 text-red-600" />
+                )}
               </div>
             </motion.button>
           );
@@ -438,7 +457,8 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
 
   /* Макет */
   return (
-    <section className="min-h-[100dvh] flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <section className="min-h-[100dvh] flex flex-col backdrop-blur-lg bg-transparent">
+
       <AnimatePresence>
         {viewingImageUrl && (
           <ImageModal imageUrl={viewingImageUrl} onClose={() => setViewingImageUrl(null)} />
@@ -446,11 +466,14 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
       </AnimatePresence>
 
       {/* HEADER (sticky) */}
-      <header
-        className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-3
-        bg-white/80 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60
-        border-b border-black/5 dark:border-white/10"
-      >
+        <header
+          className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-4
+          backdrop-blur-[40px] bg-white/30 dark:bg-gray-900/60
+          border-b border-white/40 dark:border-gray-700/60
+          shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-saturate-150"
+        >
+
+
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -527,11 +550,14 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
       </div>
 
       {/* FOOTER */}
-      <footer
-        className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-4
-        bg-white/80 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60
-        border-t border-black/5 dark:border-white/10"
-      >
+        <footer
+          className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-5
+          backdrop-blur-[40px] bg-white/25 dark:bg-gray-900/70
+          border-t border-white/40 dark:border-gray-700/60
+          shadow-[0_-4px_25px_rgba(0,0,0,0.25)] backdrop-saturate-150"
+        >
+
+
         <div className="max-w-4xl mx-auto flex flex-col items-center justify-center gap-2">
           {wasCorrect !== null && (
             <p className="text-sm text-gray-600 dark:text-gray-400">Take a moment to understand why.</p>

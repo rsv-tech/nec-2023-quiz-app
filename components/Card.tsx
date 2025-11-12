@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 type CardProps = React.HTMLAttributes<HTMLDivElement> & {
   /** Включить hover/tap-анимации (iOS-like) */
@@ -7,33 +6,22 @@ type CardProps = React.HTMLAttributes<HTMLDivElement> & {
 };
 
 /**
- * Базовая «стеклянная» карточка без каких-либо внутренних контролов.
- * Никаких переключателей языка внутри — только контейнер для контента.
+ * Унифицированная «стеклянная» карточка для всех экранов.
+ * Используется в HomeScreen, TestScreen и ResultsScreen.
  */
 const Card: React.FC<CardProps> = ({ className = '', interactive = true, ...rest }) => {
   const base =
-    'rounded-2xl border backdrop-blur-[20px] shadow-lg ' +
-    // границы
-    'border-black/5 dark:border-white/10 ' +
-    // мягкий фон (light/dark)
-    'bg-white/80 dark:bg-gray-900/60 ' +
+    'rounded-2xl backdrop-blur-lg shadow-lg transition-all duration-300 ' +
+    // границы — немного ярче
+    'border border-white/30 dark:border-gray-700/50 ' +
+    // фон — чуть плотнее
+    'bg-gradient-to-br from-white/15 to-white/5 dark:from-gray-800/30 dark:to-gray-900/20 ' +
     // текст
-    'text-gray-900 dark:text-gray-100';
+    'text-gray-800 dark:text-gray-200 font-sans';
 
   const merged = `${base} ${className}`;
 
-  if (interactive) {
-    return (
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98, opacity: 0.98 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className={merged}
-        {...rest}
-      />
-    );
-  }
-
+  // убираем движение — карточка статичная
   return <div className={merged} {...rest} />;
 };
 
