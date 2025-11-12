@@ -1,0 +1,5 @@
+{
+  "name": "NEC 2023 Quiz App",
+  "description": "An iOS 18-styled quiz application for studying the NEC 2023 code, featuring a minimalist design, glassmorphism UI, light/dark themes, and interactive test-taking experience.",
+  "requestFramePermissions": []
+}
