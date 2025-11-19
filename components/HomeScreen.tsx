@@ -386,7 +386,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="space-y-8">
       {/* Верхняя панель: приветствие + Log out */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mt-12 md:mt-20">
+      <div className="flex items-center justify-between gap-3 flex-wrap mt-4 md:mt-20">
         <header className="text-left space-y-1">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white">{tr.title}</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">{tr.subtitle}</p>
@@ -420,32 +420,32 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Main Menu View */}
       {view === 'menu' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mt-4 md:mt-8">
               {/* Glossary */}
-              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
-                  <div className="w-16 h-16 mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-3xl">
+              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
+                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
                       📚
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{tr.menu.glossary}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.glossaryDesc}</p>
+                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.glossary}</h3>
+                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.glossaryDesc}</p>
               </Card>
 
               {/* Questions */}
-              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={() => setView('topics')}>
-                  <div className="w-16 h-16 mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-3xl">
+              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={() => setView('topics')}>
+                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
                       📝
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{tr.menu.questions}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.questionsDesc}</p>
+                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.questions}</h3>
+                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.questionsDesc}</p>
               </Card>
 
               {/* Exam Emulation */}
-              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onStartFullExam}>
-                  <div className="w-16 h-16 mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-3xl">
+              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onStartFullExam}>
+                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
                       ⏱️
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{tr.menu.exam}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
+                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.exam}</h3>
+                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
               </Card>
           </div>
       )}
