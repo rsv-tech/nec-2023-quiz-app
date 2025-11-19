@@ -209,24 +209,7 @@ const App: React.FC = () => {
           </AnimatePresence>
         </button>
 
-        {/* Theme */}
-        <button
-          onClick={toggleTheme}
-          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-white/30 dark:bg-gray-800/30 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-lg transition-colors hover:bg-white/50 dark:hover:bg-gray-800/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={theme}
-              initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
-              animate={{ opacity: 1, rotate: 0, scale: 1 }}
-              exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-            >
-              {theme === 'light' ? <MoonIcon className="h-6 w-6" /> : <SunIcon className="h-6 w-6" />}
-            </motion.div>
-          </AnimatePresence>
-        </button>
+
       </div>
     );
   };

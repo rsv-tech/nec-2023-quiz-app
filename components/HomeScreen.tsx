@@ -386,7 +386,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="space-y-8">
       {/* Верхняя панель: приветствие + Log out */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mt-4 md:mt-20">
+      <div className="flex items-center justify-between gap-3 flex-wrap mt-16 md:mt-24">
         <header className="text-left space-y-1">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white">{tr.title}</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">{tr.subtitle}</p>
