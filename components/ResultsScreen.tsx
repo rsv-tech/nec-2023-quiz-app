@@ -336,7 +336,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onRestart, user, 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] text-center relative py-8">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-4rem)] text-center relative py-8 pb-24">
       <div className="sr-only" role="alert" aria-live="polite">
         {language === 'en'
           ? `Test complete. Your score is ${percentage} percent. ${feedback.text.en}`
@@ -433,20 +433,20 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ result, onRestart, user, 
             ) : history.length > 0 ? (
               history.map((attempt, idx) => (
                 <div
-                  key={attempt.attemptId ?? `${attempt.submittedAt}-${idx}`}
+                  key={attempt.attempt_id ?? `${attempt.submitted_at}-${idx}`}
                   className="flex justify-between items-center p-4 border-b border-gray-200/50 dark:border-gray-700/50 last:border-b-0"
                 >
                   <div>
                     <p className="font-semibold">
-                      {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleDateString() : '—'}
+                      {attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleDateString() : '—'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleTimeString() : ''}
+                      {attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleTimeString() : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`font-bold ${attempt.passed ? 'text-green-500' : 'text-red-500'}`}>
-                      {attempt.scorePct ?? 0}%
+                      {attempt.score_pct ?? 0}%
                     </span>
                     {attempt.passed ? (
                       <CheckIcon className="h-5 w-5 text-green-500" />

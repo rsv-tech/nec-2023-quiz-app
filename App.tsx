@@ -321,8 +321,8 @@ const App: React.FC = () => {
     }
 
     return (
-      <main className="min-h-screen text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
-        <div className="container mx-auto p-4 sm:p-6 md:p-8 relative">
+      <main className="min-h-[100dvh] text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+        <div className="container mx-auto p-4 sm:p-6 md:p-8 pb-24 relative">
           {renderHeaderControls()}
           <AnimatePresence mode="wait">
             <motion.div
