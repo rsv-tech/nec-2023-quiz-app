@@ -1,5 +1,5 @@
 // src/services/sheetsService.ts — ОБНОВЛЕНО под новый Code.gs
-import { type Exam, type Question, type User, type TestResult, type Attempt } from '../types';
+import { type Exam, type Question, type User, type TestResult, type Attempt, type GlossaryItem } from '../types';
 import { APPS_SCRIPT_URL, VITE_EXAM_ID } from '../constants';
 
 const fetchData = async (params: URLSearchParams) => {
@@ -86,6 +86,23 @@ export const getAttemptHistory = async (userId: string, examTitle: string): Prom
         action: 'getAttemptHistory',
         userId,
         examTitle,
+    });
+    return fetchData(params);
+};
+
+
+
+export const fetchGlossary = async (): Promise<GlossaryItem[]> => {
+    const params = new URLSearchParams({
+        action: 'getGlossary'
+    });
+    return fetchData(params);
+};
+
+export const addGlossaryTermApi = async (term: string): Promise<any> => {
+    const params = new URLSearchParams({
+        action: 'addGlossaryTerm',
+        term: term
     });
     return fetchData(params);
 };

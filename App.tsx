@@ -2,11 +2,12 @@ import React, { useState, useEffect, Suspense } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Toast from './components/Toast';
 import UpgradeModal from './components/UpgradeModal';
-import { type Exam, type TestResult, type User, type Language } from './types';
+import { type Exam, type TestResult, type User, type Language, type Question } from './types';
 import useTheme from './hooks/useTheme';
 import { saveProgress } from './services/progressService';
 import { recordTestCompletion, saveTestResult } from './services/sheetsService';
 import { getUser, saveUser, clearUser } from './services/userService';
+import { generateFullExam, generateGlossaryQuiz } from './services/quizService';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SunIcon } from './components/icons/SunIcon';
 import { MoonIcon } from './components/icons/MoonIcon';
@@ -15,8 +16,9 @@ import { MoonIcon } from './components/icons/MoonIcon';
 const TestScreen = React.lazy(() => import('./components/TestScreen'));
 const HomeScreen = React.lazy(() => import('./components/HomeScreen'));
 const ResultsScreen = React.lazy(() => import('./components/ResultsScreen'));
+const GlossaryScreen = React.lazy(() => import('./components/GlossaryScreen'));
 
-type Screen = 'home' | 'test' | 'results';
+type Screen = 'home' | 'test' | 'results' | 'glossary';
 
 const screenVariants = {
   initial: { opacity: 0, y: 20 },
@@ -29,6 +31,8 @@ const App: React.FC = () => {
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testMode, setTestMode] = useState<'practice' | 'exam'>('practice');
+  const [examQuestions, setExamQuestions] = useState<Question[] | undefined>(undefined);
   const [toast, setToast] = useState<{ message: string; key: number } | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
@@ -68,7 +72,35 @@ const App: React.FC = () => {
 
   const handleStartTest = (exam: Exam) => {
     setSelectedExam(exam);
+    setTestMode('practice');
+    setExamQuestions(undefined); // Clear any pre-loaded questions
     setActiveScreen('test');
+  };
+
+  const handleStartFullExam = async () => {
+      setToast({ message: language === 'ru' ? 'Генерация экзамена...' : 'Generating exam...', key: Date.now() });
+      try {
+          const { exam, questions } = await generateFullExam(100);
+          setSelectedExam(exam);
+          setExamQuestions(questions);
+          setTestMode('exam');
+          setActiveScreen('test');
+      } catch (e) {
+          setToast({ message: language === 'ru' ? 'Ошибка запуска экзамена' : 'Error starting exam', key: Date.now() });
+      }
+  };
+
+  const handleStartGlossaryQuiz = async () => {
+    setToast({ message: language === 'ru' ? 'Генерация квиза...' : 'Generating quiz...', key: Date.now() });
+    try {
+      const { exam, questions } = await generateGlossaryQuiz(10);
+      setSelectedExam(exam);
+      setExamQuestions(questions); // Assuming setExamQuestions is used to pass questions to TestScreen
+      setTestMode('practice'); // Use practice mode for immediate feedback
+      setActiveScreen('test');
+    } catch (e) {
+      setToast({ message: language === 'ru' ? 'Ошибка запуска квиза' : 'Error starting quiz', key: Date.now() });
+    }
   };
 
   const handleTestComplete = async (result: TestResult) => {
@@ -111,6 +143,7 @@ const App: React.FC = () => {
   const handleRestart = () => {
     setSelectedExam(null);
     setTestResult(null);
+    setExamQuestions(undefined);
     setActiveScreen('home');
   };
 
@@ -128,26 +161,32 @@ const App: React.FC = () => {
     setUser(null);
     setSelectedExam(null);
     setTestResult(null);
+    setExamQuestions(undefined);
     setActiveScreen('home');
     setToast({ message: 'Signed out', key: Date.now() });
   };
 
   // Header controls (hidden on test screen)
   const renderHeaderControls = () => {
-    if (activeScreen === 'test') return null;
+    if (activeScreen === 'test' || activeScreen === 'glossary') return null;
 
     return (
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 z-10 flex items-center gap-2">
-        {/* Log out (only when logged in) */}
+        {/* User Email & Log out */}
         {user && (
-          <button
-            onClick={handleLogout}
-            className="px-3 py-2 text-sm font-semibold bg-white/30 dark:bg-gray-800/30 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            aria-label="Log out"
-            title="Log out"
-          >
-            Log out
-          </button>
+          <>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300 hidden md:inline mr-2">
+              {user.email}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-2 text-sm font-semibold bg-white/30 dark:bg-gray-800/30 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-lg hover:bg-red-500/80 hover:text-white dark:hover:bg-red-500/80 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+              aria-label="Log out"
+              title="Log out"
+            >
+              {language === 'ru' ? 'Выйти' : 'Log out'}
+            </button>
+          </>
         )}
 
         {/* Language */}
@@ -194,6 +233,17 @@ const App: React.FC = () => {
 
   const renderScreenComponent = () => {
     switch (activeScreen) {
+      case 'glossary':
+          return (
+              <Suspense fallback={<div />}>
+                  <GlossaryScreen
+                    onBack={() => setActiveScreen('home')}
+                    language={language}
+                    onStartQuiz={handleStartGlossaryQuiz}
+                    onLanguageToggle={toggleLanguage}
+                  />
+              </Suspense>
+          );
       case 'test':
         return (
           selectedExam && (
@@ -213,6 +263,8 @@ const App: React.FC = () => {
                 onBack={handleRestart}
                 language={language}
                 onLanguageToggle={toggleLanguage}
+                mode={testMode}
+                initialQuestions={examQuestions}
               />
             </Suspense>
           )
@@ -251,9 +303,12 @@ const App: React.FC = () => {
           >
             <HomeScreen
               onStartTest={handleStartTest}
+              onStartFullExam={handleStartFullExam}
+              onOpenGlossary={() => setActiveScreen('glossary')}
               user={user}
               onUpgradeClick={() => setIsUpgradeModalOpen(true)}
               language={language}
+              onLogout={handleLogout}
             />
           </Suspense>
         );

@@ -69,3 +69,11 @@ export interface Attempt {
     score_pct: number;
     passed: boolean;
 }
+
+export interface GlossaryItem {
+  id?: string;
+  term: string;
+  definition_en: string;
+  definition_ru: string;
+  isUserDefined?: boolean;
+}

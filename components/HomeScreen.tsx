@@ -9,10 +9,12 @@ import { type Exam, type Progress, type User, type Language } from '../types';
 
 interface HomeScreenProps {
   onStartTest: (exam: Exam) => void;
+  onStartFullExam: () => void; // New prop
+  onOpenGlossary: () => void; // New prop
   user: User | null;
   onUpgradeClick: () => void;
   language: Language;
-  onLogout?: () => void; // 👈 добавь это при использовании
+  onLogout?: () => void;
 }
 
 /** ------------ i18n ------------ */
@@ -35,10 +37,19 @@ const t = (lang: Language) => ({
   loading: lang === 'en' ? 'Loading topics...' : 'Загрузка тем...',
   notFoundTitle: lang === 'en' ? 'No topics found' : 'Тем не найдено',
   notFoundHint: lang === 'en' ? 'Try a different search term.' : 'Попробуйте изменить поисковый запрос.',
-  start: lang === 'en' ? 'Start Test' : 'Начать тест',
+  start: lang === 'en' ? 'Start Test' : 'Начать',
   correct: lang === 'en' ? 'correct' : 'верно',
   questions: lang === 'en' ? 'questions' : 'вопросов',
   logout: lang === 'en' ? 'Log out' : 'Выйти',
+  menu: {
+      glossary: lang === 'en' ? 'Glossary' : 'Глоссарий',
+      glossaryDesc: lang === 'en' ? 'Key terms and definitions' : 'Основные термины и определения',
+      questions: lang === 'en' ? 'Questions' : 'Вопросы',
+      questionsDesc: lang === 'en' ? 'Practice by topic' : 'Практика по темам',
+      exam: lang === 'en' ? 'Exam Emulation' : 'Эмуляция Экзамена',
+      examDesc: lang === 'en' ? '4-hour full simulation' : '4-часовая полная симуляция',
+      back: lang === 'en' ? 'Back to Menu' : 'Назад в меню',
+  }
 });
 
 /** ------------ Категории (жёстко сопоставлены с титулами тем) ------------ */
@@ -261,6 +272,8 @@ const AccordionItem: React.FC<{
 /** ------------ Главный экран ------------ */
 const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartTest,
+  onStartFullExam,
+  onOpenGlossary,
   user,
   onUpgradeClick,
   language,
@@ -268,6 +281,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const tr = t(language);
 
+  const [view, setView] = useState<'menu' | 'topics'>('menu');
   const [exams, setExams] = useState<Exam[]>([]);
   const [progress, setProgress] = useState<Progress>({});
   const [loading, setLoading] = useState(true);
@@ -372,27 +386,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="space-y-8">
       {/* Верхняя панель: приветствие + Log out */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap mt-12 md:mt-20">
         <header className="text-left space-y-1">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white">{tr.title}</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">{tr.subtitle}</p>
+          {view === 'topics' && (
+              <button 
+                onClick={() => setView('menu')}
+                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                  <ChevronLeftIcon className="w-4 h-4" /> {tr.menu.back}
+              </button>
+          )}
         </header>
 
-        {user && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">
-              {user.email}
-            </span>
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="px-4 py-2 text-sm font-semibold text-white bg-red-500/90 hover:bg-red-600 rounded-lg shadow transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-              >
-                {tr.logout}
-              </button>
-            )}
-          </div>
-        )}
+
       </div>
 
       {/* Бейджи статуса + Upgrade */}
@@ -410,6 +418,41 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
       </div>
 
+      {/* Main Menu View */}
+      {view === 'menu' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              {/* Glossary */}
+              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
+                  <div className="w-16 h-16 mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-3xl">
+                      📚
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{tr.menu.glossary}</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.glossaryDesc}</p>
+              </Card>
+
+              {/* Questions */}
+              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={() => setView('topics')}>
+                  <div className="w-16 h-16 mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-3xl">
+                      📝
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{tr.menu.questions}</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.questionsDesc}</p>
+              </Card>
+
+              {/* Exam Emulation */}
+              <Card className="p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onStartFullExam}>
+                  <div className="w-16 h-16 mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-3xl">
+                      ⏱️
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{tr.menu.exam}</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
+              </Card>
+          </div>
+      )}
+
+      {/* Topics View (Existing Content) */}
+      {view === 'topics' && (
+        <>
       {/* Общий прогресс */}
       {!loading && exams.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
@@ -507,6 +550,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
+        </>
+      )}
         </>
       )}
     </div>

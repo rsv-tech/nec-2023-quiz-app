@@ -121,6 +121,10 @@ interface QuestionCardProps {
   onImageClick: (url: string) => void;
   answered: boolean;
   wasCorrect: boolean | null;
+  onNext: () => void;
+  isLastQuestion: boolean;
+  showNextButton: boolean;
+  mode: 'practice' | 'exam';
 }
 
 const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -130,7 +134,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   selectedChoiceId,
   onImageClick,
   answered,
-  wasCorrect
+  wasCorrect,
+  onNext,
+  isLastQuestion,
+  showNextButton,
+  mode
 }) => {
   const handleChoiceClick = (choice: Choice) => {
     if (answered) return;                 // блокируем повторные клики
@@ -269,6 +277,24 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           </p>
         </motion.div>
       )}
+
+      {/* Кнопка Next/Finish внутри карточки */}
+      <AnimatePresence>
+        {(mode === 'exam' || (showResult && showNextButton)) && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="mt-8 flex justify-center"
+          >
+            <button
+              onClick={onNext}
+              className="w-full sm:w-auto px-8 py-4 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {isLastQuestion ? 'Finish Exam' : 'Next Question'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   );
 };
@@ -280,14 +306,29 @@ interface TestScreenProps {
   exam: Exam;
   onTestComplete: (result: TestResult) => void;
   onBack: () => void;
+  language: Language;
+  onLanguageToggle: () => void;
+  mode?: 'practice' | 'exam'; // New prop
+  initialQuestions?: Question[]; // Optional pre-loaded questions
+  timerDuration?: number; // Optional override for timer
 }
 
-const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack }) => {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(true);
+const TestScreen: React.FC<TestScreenProps> = ({ 
+  exam, 
+  onTestComplete, 
+  onBack, 
+  language: initialLanguage, 
+  onLanguageToggle,
+  mode = 'practice',
+  initialQuestions,
+  timerDuration
+}) => {
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions || []);
+  const [loading, setLoading] = useState(!initialQuestions);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<(Choice | null)[]>([]);
-  const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION);
+  // In exam mode, timer is global. In practice, per question.
+  const [timeLeft, setTimeLeft] = useState(timerDuration || (mode === 'exam' ? 14400 : TIME_PER_QUESTION));
   const [viewingImageUrl, setViewingImageUrl] = useState<string | null>(null);
 
   const [displayLanguage, setDisplayLanguage] = useState<Language>('en');
@@ -300,6 +341,11 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
 
   /* Загрузка/восстановление */
   useEffect(() => {
+    if (initialQuestions) {
+        setLoading(false);
+        return;
+    }
+
     const load = async () => {
       setLoading(true);
       try {
@@ -308,7 +354,7 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
           setQuestions(state.questions);
           setCurrentQuestionIndex(state.currentIndex ?? 0);
           setUserAnswers(state.userAnswers ?? Array(state.questions.length).fill(null));
-          setTimeLeft(state.timeLeft ?? TIME_PER_QUESTION);
+          setTimeLeft(state.timeLeft ?? (mode === 'exam' ? 14400 : TIME_PER_QUESTION));
         } else {
           const fetched = await getQuestions(exam.id, QUESTIONS_PER_TEST);
           setQuestions(fetched || []);
@@ -323,9 +369,9 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
     };
     load();
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current as number);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [exam.id]);
+  }, [exam.id, initialQuestions, mode]);
 
   /* Сохранение состояния */
   useEffect(() => {
@@ -344,7 +390,13 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
     if (loading || questions.length === 0 || isPaused) return;
 
     if (timeLeft <= 0) {
-      // Время вышло — считаем как неверный, блокируем ответы, показываем Next позже
+      if (mode === 'exam') {
+         // Exam over
+         handleFinishExam();
+         return;
+      }
+
+      // Practice mode: time per question over
       if (wasCorrect === null) {
         setWasCorrect(false);
         setSelectedChoiceId(''); // без подсветки выбора
@@ -355,52 +407,51 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
 
     timerRef.current = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current as number);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [loading, questions.length, isPaused, timeLeft, wasCorrect]);
+  }, [loading, questions.length, isPaused, timeLeft, wasCorrect, mode]);
 
   /* Появление Next (разные задержки) */
   useEffect(() => {
+    if (mode === 'exam') return; // No auto-next button delay in exam mode
     if (wasCorrect === null) return;
     const delay = wasCorrect ? 700 : 1500;
     const t = setTimeout(() => setShowNextButton(true), delay);
     return () => clearTimeout(t);
-  }, [wasCorrect]);
+  }, [wasCorrect, mode]);
 
   /* Новый вопрос — сброс языка на EN и скрытие Next */
   useEffect(() => {
-    setDisplayLanguage('en');
+    // Only reset if not in exam mode (or maybe keep consistent? Let's keep consistent)
+    setDisplayLanguage('en'); 
     setShowNextButton(false);
-  }, [currentQuestionIndex]);
+    // In practice mode, reset timer per question. In exam mode, timer continues.
+    if (mode === 'practice') {
+        setTimeLeft(TIME_PER_QUESTION);
+    }
+  }, [currentQuestionIndex, mode]);
 
   /* Ответ */
   const handleAnswer = useCallback(
     (choice: Choice) => {
-      if (wasCorrect !== null) return; // блок повторного ответа
+      if (mode === 'practice' && wasCorrect !== null) return; // Practice: block if already answered
+      
+      // In Exam mode, we just select, we don't show result immediately
       setSelectedChoiceId(choice.id);
-      setWasCorrect(choice.is_correct);
-      setIsPaused(true);               // при ответе ставим таймер на паузу
-
+      
       const updated = [...userAnswers];
       updated[currentQuestionIndex] = choice;
       setUserAnswers(updated);
+
+      if (mode === 'practice') {
+          setWasCorrect(choice.is_correct);
+          setIsPaused(true); // Pause timer in practice
+      }
     },
-    [currentQuestionIndex, userAnswers, wasCorrect]
+    [currentQuestionIndex, userAnswers, wasCorrect, mode]
   );
 
-  /* Next / View Results */
-  const handleNextClick = () => {
-    // подготовка к переходу
-    setWasCorrect(null);
-    setSelectedChoiceId(null);
-    setShowNextButton(false);
-    setIsPaused(false);
-
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-      setTimeLeft(TIME_PER_QUESTION);
-    } else {
-      // последний вопрос → запускаем глобальный оверлей и сразу отдаём результат
+  const handleFinishExam = () => {
       const label = displayLanguage === 'en' ? 'Updating results…' : 'Обновляются результаты…';
       const hideOverlay = showGlobalResultsLoader(label);
 
@@ -414,9 +465,29 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
       };
 
       onTestComplete(result);
-
-      // Подстраховка: если ResultsScreen не смонтируется, уберём оверлей через 8 сек
       setTimeout(() => { try { hideOverlay(); } catch {} }, 8000);
+  };
+
+  /* Next / View Results */
+  const handleNextClick = () => {
+    // In exam mode, just move to next
+    if (mode === 'practice') {
+        setWasCorrect(null);
+        setSelectedChoiceId(null);
+        setShowNextButton(false);
+        setIsPaused(false);
+    } else {
+        // Exam mode: just reset selection visual if needed, but we keep selection in state
+        // Actually in exam mode we might want to allow going back? 
+        // For now, let's assume linear progression for simplicity or just clear visual selection for next Q
+        setSelectedChoiceId(userAnswers[currentQuestionIndex + 1]?.id || null);
+    }
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      // Time reset handled in useEffect for practice mode
+    } else {
+      handleFinishExam();
     }
   };
 
@@ -520,6 +591,11 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
 
           <div className="mt-3">
             <ProgressBar timeLeft={timeLeft} isPaused={isPaused} />
+            {mode === 'exam' && (
+                <div className="text-center text-sm mt-1 text-gray-600 dark:text-gray-400 font-mono">
+                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')} remaining
+                </div>
+            )}
           </div>
         </div>
       </header>
@@ -541,42 +617,17 @@ const TestScreen: React.FC<TestScreenProps> = ({ exam, onTestComplete, onBack })
                 onAnswer={handleAnswer}
                 selectedChoiceId={selectedChoiceId}
                 onImageClick={setViewingImageUrl}
-                answered={wasCorrect !== null}
-                wasCorrect={wasCorrect}
+                answered={mode === 'practice' ? wasCorrect !== null : false} // In exam mode, never show "answered" state (which reveals result)
+                wasCorrect={mode === 'practice' ? wasCorrect : null}
+                onNext={handleNextClick}
+                isLastQuestion={currentQuestionIndex === questions.length - 1}
+                showNextButton={showNextButton}
+                mode={mode}
               />
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
-
-      {/* FOOTER */}
-        <footer
-          className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-5
-          backdrop-blur-[40px] bg-white/25 dark:bg-gray-900/70
-          border-t border-white/40 dark:border-gray-700/60
-          shadow-[0_-4px_25px_rgba(0,0,0,0.25)] backdrop-saturate-150"
-        >
-
-
-        <div className="max-w-4xl mx-auto flex flex-col items-center justify-center gap-2">
-          {wasCorrect !== null && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">Take a moment to understand why.</p>
-          )}
-
-          <AnimatePresence>
-            {wasCorrect !== null && showNextButton && (
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-                <button
-                  onClick={handleNextClick}
-                  className="px-8 py-3 font-semibold text-white bg-blue-600/90 dark:bg-blue-500/90 border border-blue-500/20 rounded-xl shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all"
-                >
-                  {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'View Results'}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </footer>
     </section>
   );
 };
