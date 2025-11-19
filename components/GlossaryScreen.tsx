@@ -314,6 +314,17 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
     </motion.div>
   );
 
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400 font-medium">
+          {language === 'en' ? 'Loading glossary...' : 'Загрузка глоссария...'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 sm:p-6 pb-24">
       <div className="max-w-4xl mx-auto">
