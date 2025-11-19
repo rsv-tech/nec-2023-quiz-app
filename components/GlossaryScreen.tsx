@@ -1,22 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Language, GlossaryItem } from '../types';
+import Card from './Card';
+import Toast from './Toast';
+import { Language, GlossaryItem, GlossaryTab } from '../types';
 import { getGlossaryTerms, addGlossaryTerm } from '../services/glossaryService';
+import { getProgress } from '../services/progressService';
+import FeedbackModal from './FeedbackModal';
+import { sendFeedback } from '../services/sheetsService';
+import { getUser } from '../services/userService';
 
 interface GlossaryScreenProps {
   onBack: () => void;
   language: Language;
   onStartQuiz: () => void;
   onLanguageToggle: () => void;
+  activeTab: GlossaryTab;
+  onTabChange: (tab: GlossaryTab) => void;
 }
 
-type Tab = 'dictionary' | 'flashcards' | 'quiz' | 'media';
-
-const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onStartQuiz, onLanguageToggle }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('dictionary');
+const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ 
+    onBack, 
+    language, 
+    onStartQuiz, 
+    onLanguageToggle,
+    activeTab,
+    onTabChange
+}) => {
+  // const [activeTab, setActiveTab] = useState<Tab>('dictionary'); // Moved to App.tsx
   const [searchTerm, setSearchTerm] = useState('');
   const [glossaryData, setGlossaryData] = useState<GlossaryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackItem, setFeedbackItem] = useState<{id: string, context: string, text: string} | null>(null);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -70,7 +86,42 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
     (language === 'en' ? item.definition_en : item.definition_ru).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleFeedbackClick = (id: string, context: string, text: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFeedbackItem({ id, context, text });
+    setIsFeedbackOpen(true);
+  };
+
+  const handleFeedbackSubmit = async (feedbackType: string, comment: string) => {
+    const user = getUser();
+    if (!user || !feedbackItem) return;
+
+    // Map internal context to Source
+    let source = 'Other';
+    if (feedbackItem.context === 'glossary_term') source = 'Glossary';
+    else if (feedbackItem.context === 'flashcard') source = 'Glossary'; // Flashcards are part of glossary
+    else if (feedbackItem.context === 'media') source = 'Other'; // Media is separate
+
+    await sendFeedback(
+        user.userId,
+        user.email || '',
+        source,
+        feedbackItem.id,
+        feedbackItem.text,
+        feedbackType,
+        comment
+    );
+  };
+
+  const handleFeedbackSuccess = () => {
+    const message = language === 'en'
+      ? 'Thanks! You just made me a little bit better 🎉'
+      : 'Спасибо! Только что я стала чуть лучше благодаря тебе 🎉';
+    setFeedbackToast(message);
+  };
+
   const t = {
+    title: language === 'en' ? 'Glossary' : 'Глоссарий',
     dictionary: language === 'en' ? 'Dictionary' : 'Словарь',
     flashcards: language === 'en' ? 'Flashcards' : 'Карточки',
     quiz: language === 'en' ? 'Quiz' : 'Квиз',
@@ -90,14 +141,21 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
     defRu: language === 'en' ? 'Definition (Russian)' : 'Определение (Русский)',
     cancel: language === 'en' ? 'Cancel' : 'Отмена',
     save: language === 'en' ? 'Save' : 'Сохранить',
+    overall: language === 'en' ? 'Overall Progress' : 'Общий прогресс',
+    correct: language === 'en' ? 'correct' : 'верно',
+    questions: language === 'en' ? 'questions' : 'вопросов',
+    correctOf: (c: number, total: number) =>
+        language === 'en'
+          ? `${c} / ${total} questions answered correctly`
+          : `${c} / ${total} вопросов отвечено верно`,
   };
 
   const renderTabs = () => (
     <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
-      {(['dictionary', 'flashcards', 'quiz', 'media'] as Tab[]).map((tab) => (
+      {(['dictionary', 'flashcards', 'quiz', 'media'] as GlossaryTab[]).map((tab) => (
         <button
           key={tab}
-          onClick={() => setActiveTab(tab)}
+          onClick={() => onTabChange(tab)}
           className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
             activeTab === tab
               ? 'bg-blue-600 text-white shadow-md'
@@ -160,7 +218,17 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
                     User
                 </span>
             )}
-            <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-2 pr-8">{item.term}</h3>
+            <div className="flex justify-between items-start mb-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{item.term}</h3>
+                <button
+                    onClick={(e) => handleFeedbackClick(item.id || item.term, 'glossary_term', item.term, e)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-8a2 2 0 012-2h14a2 2 0 012 2v8H3zM3 10V5a2 2 0 012-2h14a2 2 0 012 2v5" />
+                    </svg>
+                </button>
+            </div>
             <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
               {language === 'en' ? item.definition_en : item.definition_ru}
             </p>
@@ -189,6 +257,16 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
           >
             {/* Front */}
             <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center p-8 text-center">
+              <div className="absolute top-4 right-4 z-10">
+                  <button
+                    onClick={(e) => handleFeedbackClick(card.id || card.term, 'flashcard', card.term, e)}
+                    className="p-2 bg-white/10 backdrop-blur-md rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-8a2 2 0 012-2h14a2 2 0 012 2v8H3zM3 10V5a2 2 0 012-2h14a2 2 0 012 2v5" />
+                    </svg>
+                  </button>
+              </div>
               <h3 className="text-3xl font-bold text-gray-800 dark:text-white">{card.term}</h3>
               <p className="mt-4 text-sm text-gray-400">{t.flip}</p>
             </div>
@@ -236,29 +314,80 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
     );
   };
 
-  const renderQuiz = () => (
+  const renderQuiz = () => {
+    const progress = getProgress();
+    const glossaryProgress = progress['glossary_quiz'];
+    // For glossary quiz, we might want to track total questions answered vs total terms, 
+    // but currently we only track correct/total for the quizzes taken.
+    // Let's show the stats for the quizzes taken so far.
+    
+    const percentage = glossaryProgress 
+        ? Math.round((glossaryProgress.correct / glossaryProgress.total) * 100) 
+        : 0;
+
+    return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center py-12 text-center"
+      className="flex flex-col items-center justify-center py-12 text-center space-y-8"
     >
-      <div className="bg-blue-100 dark:bg-blue-900/30 p-6 rounded-full mb-6">
-        <svg className="w-12 h-12 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-        </svg>
-      </div>
-      <h3 className="text-2xl font-bold mb-2">{t.quiz}</h3>
-      <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">{t.quizDesc}</p>
-      <button
-        onClick={onStartQuiz}
-        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95"
-      >
-        {t.startQuiz}
-      </button>
-    </motion.div>
-  );
+      {/* Progress Card */}
+      {glossaryProgress && (
+          <Card className="w-full max-w-md p-6 !backdrop-blur-[20px] bg-gradient-to-br from-white/10 to-transparent text-left">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t.overall}</h2>
+              <span className="font-bold text-blue-500 dark:text-blue-400">
+                {percentage}%
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {t.correctOf(glossaryProgress.correct, glossaryProgress.total)}
+            </p>
+            <div
+              role="progressbar"
+              aria-valuenow={percentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Overall progress"
+              className="w-full bg-gray-200/30 dark:bg-gray-700/50 rounded-full h-2.5"
+            >
+              <motion.div
+                className="bg-blue-500 h-2.5 rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: `${percentage}%` }}
+                transition={{ duration: 1.3, ease: 'easeOut' }}
+              />
+            </div>
+          </Card>
+      )}
 
-  const renderMedia = () => (
+      <div className="flex flex-col items-center">
+        <div className="bg-blue-100 dark:bg-blue-900/30 p-6 rounded-full mb-6">
+            <svg className="w-12 h-12 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+        </div>
+        <h3 className="text-2xl font-bold mb-2">{t.quiz}</h3>
+        <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">{t.quizDesc}</p>
+        <button
+            onClick={onStartQuiz}
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95"
+        >
+            {t.startQuiz}
+        </button>
+      </div>
+    </motion.div>
+    );
+  };
+
+  const renderMedia = () => {
+    // Placeholder for videos data, assuming it would be fetched or defined elsewhere
+    const videos = [
+      { id: 'video1', title: 'NEC Basics Part 1', description: t.comingSoon, thumbnail: '' },
+      { id: 'video2', title: 'NEC Basics Part 2', description: t.comingSoon, thumbnail: '' },
+    ];
+
+    return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -269,20 +398,32 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
       {/* Video Section */}
       <div className="space-y-4">
         <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Videos</h4>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="aspect-video bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {videos.map((video, i) => (
+            <Card key={video.id} className="overflow-hidden group relative">
+                <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={(e) => handleFeedbackClick(video.id, 'media', video.title, e)}
+                        className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-8a2 2 0 012-2h14a2 2 0 012 2v8H3zM3 10V5a2 2 0 012-2h14a2 2 0 012 2v5" />
+                        </svg>
+                    </button>
+                </div>
+              <div className="aspect-video bg-gray-900 relative">
+                <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                  <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
               </div>
               <div className="p-4">
                 <h5 className="font-medium mb-1">NEC Basics Part {i}</h5>
                 <p className="text-sm text-gray-500">{t.comingSoon}</p>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>
@@ -313,6 +454,7 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
       </div>
     </motion.div>
   );
+  };
 
   if (loading) {
     return (
@@ -428,6 +570,23 @@ const GlossaryScreen: React.FC<GlossaryScreenProps> = ({ onBack, language, onSta
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        onSubmit={handleFeedbackSubmit}
+        onSuccess={handleFeedbackSuccess}
+        language={language}
+      />
+
+      <AnimatePresence>
+        {feedbackToast && (
+          <Toast
+            message={feedbackToast}
+            onClose={() => setFeedbackToast(null)}
+          />
         )}
       </AnimatePresence>
     </div>

@@ -3,17 +3,17 @@ import { motion } from 'framer-motion';
 
 interface ToastProps {
   message: string;
-  onDone: () => void;
+  onClose: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, onDone }) => {
+const Toast: React.FC<ToastProps> = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      onDone();
+      onClose();
     }, 4000); // Hide after 4 seconds
 
     return () => clearTimeout(timer);
-  }, [onDone]);
+  }, [onClose]);
 
   return (
     <motion.div

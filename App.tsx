@@ -2,10 +2,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Toast from './components/Toast';
 import UpgradeModal from './components/UpgradeModal';
-import { type Exam, type TestResult, type User, type Language, type Question } from './types';
+import { type Exam, type TestResult, type User, type Language, type Question, type GlossaryTab } from './types';
 import useTheme from './hooks/useTheme';
 import { saveProgress } from './services/progressService';
-import { recordTestCompletion, saveTestResult } from './services/sheetsService';
+import { recordTestCompletion, saveTestResult, saveGlossaryQuizResult } from './services/sheetsService';
 import { getUser, saveUser, clearUser } from './services/userService';
 import { generateFullExam, generateGlossaryQuiz } from './services/quizService';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [examQuestions, setExamQuestions] = useState<Question[] | undefined>(undefined);
   const [toast, setToast] = useState<{ message: string; key: number } | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [glossaryTab, setGlossaryTab] = useState<GlossaryTab>('dictionary');
 
   // Language with localStorage persistence
   const [language, setLanguage] = useState<Language>(() => {
@@ -114,10 +115,13 @@ const App: React.FC = () => {
 
     if (user && selectedExam) {
       try {
-        await Promise.all([
-          saveTestResult(user.userId, selectedExam.id, resultWithLanguage),
-          recordTestCompletion(user.userId, result.total),
-        ]);
+        if (selectedExam.id === 'glossary_quiz') {
+             await saveGlossaryQuizResult(user.userId, resultWithLanguage, result.duration);
+        } else {
+             await saveTestResult(user.userId, selectedExam.id, resultWithLanguage);
+        }
+        
+        await recordTestCompletion(user.userId, result.total);
 
         const loggedInUser = getUser();
         if (loggedInUser) {
@@ -142,10 +146,18 @@ const App: React.FC = () => {
   };
 
   const handleRestart = () => {
+    // If we were in a glossary quiz, go back to the glossary screen (quiz tab)
+    if (selectedExam?.id === 'glossary_quiz') {
+        setActiveScreen('glossary');
+        // Ensure we stay on the quiz tab or switch to it if needed
+        setGlossaryTab('quiz'); 
+    } else {
+        setActiveScreen('home');
+    }
+    
     setSelectedExam(null);
     setTestResult(null);
     setExamQuestions(undefined);
-    setActiveScreen('home');
   };
 
   const toggleLanguage = () => {
@@ -223,6 +235,8 @@ const App: React.FC = () => {
                     language={language}
                     onStartQuiz={handleStartGlossaryQuiz}
                     onLanguageToggle={toggleLanguage}
+                    activeTab={glossaryTab}
+                    onTabChange={setGlossaryTab}
                   />
               </Suspense>
           );
@@ -310,16 +324,20 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <>
-        <Toast message={toast?.message} onClose={() => setToast(null)} />
-        <LoginScreen onLoginSuccess={handleLoginSuccess} language={language} onLanguageToggle={toggleLanguage} />
+        <AnimatePresence>
+          {toast && <Toast key={toast.key} message={toast.message} onClose={() => setToast(null)} />}
+        </AnimatePresence>
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
       </>
     );
   }
 
   return (
     <div className={`min-h-[100dvh] bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300 ${theme}`}>
-      <Toast message={toast?.message} onClose={() => setToast(null)} />
-      <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} language={language} />
+      <AnimatePresence>
+        {toast && <Toast key={toast.key} message={toast.message} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+      <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
       
       {renderHeaderControls()}
 

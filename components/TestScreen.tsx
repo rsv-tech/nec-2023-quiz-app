@@ -6,8 +6,12 @@ import { QUESTIONS_PER_TEST, TIME_PER_QUESTION } from '../constants';
 import { CheckIcon } from './icons/CheckIcon';
 import { CrossIcon } from './icons/CrossIcon';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
+import FeedbackModal from './FeedbackModal';
+import { sendFeedback } from '../services/sheetsService';
+import { getUser } from '../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from './Card';
+import Toast from './Toast';
 
 /* =================================================================================
    Глобальный оверлей загрузки результатов (живёт в document.body до ResultsScreen)
@@ -337,7 +341,11 @@ const TestScreen: React.FC<TestScreenProps> = ({
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [showNextButton, setShowNextButton] = useState(false);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
 
   /* Загрузка/восстановление */
   useEffect(() => {
@@ -423,7 +431,7 @@ const TestScreen: React.FC<TestScreenProps> = ({
   /* Новый вопрос — сброс языка на EN и скрытие Next */
   useEffect(() => {
     // Only reset if not in exam mode (or maybe keep consistent? Let's keep consistent)
-    setDisplayLanguage('en'); 
+    setDisplayLanguage('en');
     setShowNextButton(false);
     // In practice mode, reset timer per question. In exam mode, timer continues.
     if (mode === 'practice') {
@@ -435,10 +443,10 @@ const TestScreen: React.FC<TestScreenProps> = ({
   const handleAnswer = useCallback(
     (choice: Choice) => {
       if (mode === 'practice' && wasCorrect !== null) return; // Practice: block if already answered
-      
+
       // In Exam mode, we just select, we don't show result immediately
       setSelectedChoiceId(choice.id);
-      
+
       const updated = [...userAnswers];
       updated[currentQuestionIndex] = choice;
       setUserAnswers(updated);
@@ -456,38 +464,62 @@ const TestScreen: React.FC<TestScreenProps> = ({
       const hideOverlay = showGlobalResultsLoader(label);
 
       clearTestState(exam.id);
+      const duration = mode === 'exam'
+        ? (14400 - timeLeft)
+        : Math.round((Date.now() - (startTimeRef.current || Date.now())) / 1000);
+
       const result: TestResult = {
         correct: userAnswers.filter((a) => a?.is_correct).length,
         total: questions.length,
         examTitle: exam.title,
         questions,
-        userAnswers
+        userAnswers,
+        duration
       };
 
       onTestComplete(result);
-      setTimeout(() => { try { hideOverlay(); } catch {} }, 8000);
+
+      // Hide overlay immediately when results screen starts loading
+      setTimeout(() => { try { hideOverlay(); } catch {} }, 100);
   };
 
   /* Next / View Results */
   const handleNextClick = () => {
-    // In exam mode, just move to next
-    if (mode === 'practice') {
-        setWasCorrect(null);
-        setSelectedChoiceId(null);
-        setShowNextButton(false);
-        setIsPaused(false);
-    } else {
-        // Exam mode: just reset selection visual if needed, but we keep selection in state
-        // Actually in exam mode we might want to allow going back? 
-        // For now, let's assume linear progression for simplicity or just clear visual selection for next Q
-        setSelectedChoiceId(userAnswers[currentQuestionIndex + 1]?.id || null);
-    }
+    const nextIndex = currentQuestionIndex + 1;
 
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-      // Time reset handled in useEffect for practice mode
+    if (nextIndex < questions.length) {
+      setCurrentQuestionIndex(nextIndex);
+
+      // Restore state for next question if it was already answered
+      const nextAnswer = userAnswers[nextIndex];
+      setSelectedChoiceId(nextAnswer?.id || null);
+
+      if (mode === 'practice') {
+        const isAnswered = !!nextAnswer;
+        setWasCorrect(isAnswered ? nextAnswer.is_correct : null);
+        setShowNextButton(isAnswered);
+        setIsPaused(isAnswered);
+      }
     } else {
       handleFinishExam();
+    }
+  };
+
+  const handlePrevClick = () => {
+    if (currentQuestionIndex > 0) {
+      const prevIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(prevIndex);
+
+      // Restore state for previous question
+      const prevAnswer = userAnswers[prevIndex];
+      setSelectedChoiceId(prevAnswer?.id || null);
+
+      if (mode === 'practice') {
+        const isAnswered = !!prevAnswer;
+        setWasCorrect(isAnswered ? prevAnswer.is_correct : null);
+        setShowNextButton(isAnswered);
+        setIsPaused(isAnswered);
+      }
     }
   };
 
@@ -508,7 +540,35 @@ const TestScreen: React.FC<TestScreenProps> = ({
     );
   }
 
-  if (!currentQuestion || questions.length === 0) {
+  const handleFeedbackSubmit = async (feedbackType: string, comment: string) => {
+    const user = getUser();
+    const currentQ = questions[currentQuestionIndex];
+    
+    if (!user || !currentQ) return;
+
+    const questionText = displayLanguage === 'en' 
+        ? currentQ.question_en 
+        : (currentQ.question_ru || currentQ.question_en);
+
+    await sendFeedback(
+        user.userId,
+        user.email || '',
+        'Question', // Source
+        currentQ.id,
+        questionText,
+        feedbackType,
+        comment
+    );
+  };
+
+  const handleFeedbackSuccess = () => {
+    const message = displayLanguage === 'en'
+      ? 'Thanks! You just made me a little bit better 🎉'
+      : 'Спасибо! Только что я стала чуть лучше благодаря тебе 🎉';
+    setFeedbackToast(message);
+  };
+
+  if (!questions || questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[100dvh] text-center px-4">
         <CrossIcon className="h-24 w-24 text-red-500 mb-6" />
@@ -526,9 +586,24 @@ const TestScreen: React.FC<TestScreenProps> = ({
     );
   }
 
+
+
+  const onDragEnd = (event: any, info: any) => {
+    const SWIPE_THRESHOLD = 50;
+    if (info.offset.x < -SWIPE_THRESHOLD) {
+      // Swipe Left -> Next
+      if (mode === 'exam' || wasCorrect !== null) {
+         handleNextClick();
+      }
+    } else if (info.offset.x > SWIPE_THRESHOLD) {
+      // Swipe Right -> Prev
+      handlePrevClick();
+    }
+  };
+
   /* Макет */
   return (
-    <section className="min-h-[100dvh] flex flex-col backdrop-blur-lg bg-transparent">
+    <div className="min-h-[100dvh] flex flex-col backdrop-blur-lg bg-transparent">
 
       <AnimatePresence>
         {viewingImageUrl && (
@@ -546,21 +621,37 @@ const TestScreen: React.FC<TestScreenProps> = ({
 
 
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              onClick={onBack}
-              className="p-3 rounded-xl bg-white/70 dark:bg-gray-800/60 border border-black/10 dark:border-white/10 hover:bg-white dark:hover:bg-gray-900 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              aria-label="Back to topics"
-            >
-              <ChevronLeftIcon className="h-6 w-6" />
-            </button>
+          <div className="w-full max-w-2xl mx-auto px-4 flex items-center justify-between mb-6">
+        <button
+          onClick={onBack}
+          className="p-2 -ml-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          aria-label="Back"
+        >
+          <ChevronLeftIcon className="w-6 h-6" />
+        </button>
 
-            <div className="text-center flex-1 mx-2">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{exam.title}</h1>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </p>
-            </div>
+        <div className="flex-1 mx-4">
+          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-blue-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+        </div>
+
+        <button
+            onClick={() => setIsFeedbackOpen(true)}
+            className="p-2 -mr-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Report issue"
+            title="Report an issue with this question"
+        >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+            </svg>
+        </button>
+      </div>
 
             <div className="flex items-center gap-2">
               {/* Пауза/плей таймера */}
@@ -597,11 +688,10 @@ const TestScreen: React.FC<TestScreenProps> = ({
                 </div>
             )}
           </div>
-        </div>
       </header>
 
       {/* CONTENT */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 md:px-8 pb-28">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 md:px-8 pb-28 overflow-x-hidden">
         <div className="max-w-4xl mx-auto py-4">
           <AnimatePresence mode="wait">
             <motion.div
@@ -610,6 +700,11 @@ const TestScreen: React.FC<TestScreenProps> = ({
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: -40, scale: 0.98 }}
               transition={{ duration: 0.25 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={onDragEnd}
+              className="touch-pan-y"
             >
               <QuestionCard
                 question={currentQuestion}
@@ -627,8 +722,25 @@ const TestScreen: React.FC<TestScreenProps> = ({
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
-    </section>
+        </div>
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        onSubmit={handleFeedbackSubmit}
+        onSuccess={handleFeedbackSuccess}
+        language={displayLanguage}
+      />
+
+      <AnimatePresence>
+        {feedbackToast && (
+          <Toast
+            message={feedbackToast}
+            onClose={() => setFeedbackToast(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

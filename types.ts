@@ -44,6 +44,7 @@ export interface TestResult {
   questions: Question[];
   userAnswers: (Choice | null)[];
   language?: Language; // Added for bilingual support
+  duration?: number; // Duration in seconds
 }
 
 export interface ProgressData {
@@ -77,3 +78,5 @@ export interface GlossaryItem {
   definition_ru: string;
   isUserDefined?: boolean;
 }
+
+export type GlossaryTab = 'dictionary' | 'flashcards' | 'quiz' | 'media';

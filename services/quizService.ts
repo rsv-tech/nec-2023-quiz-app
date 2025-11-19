@@ -22,26 +22,37 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 /**
  * Получает список всех экзаменов из Google Sheets
  */
+let examsPromise: Promise<Exam[]> | null = null;
+
 export const getExams = async (): Promise<Exam[]> => {
   try {
-    // Используем кэш если данные уже загружены
+    // If data is already cached, return it
     if (cachedExams) {
       console.log('📦 Using cached exams');
       return cachedExams;
     }
 
+    // If a request is already in progress, return that promise
+    if (examsPromise) {
+      console.log('⏳ Waiting for existing exams request...');
+      return examsPromise;
+    }
+
     console.log('🔄 Loading exams from Google Sheets...');
-    const exams = await fetchExams();
     
-    // Сохраняем в кэш
-    cachedExams = exams;
-    
-    return exams;
+    // Create a new request promise
+    examsPromise = fetchExams().then(exams => {
+      cachedExams = exams;
+      examsPromise = null; // Clear promise after success
+      return exams;
+    }).catch(error => {
+      examsPromise = null; // Clear promise on error so we can try again
+      throw error;
+    });
+
+    return await examsPromise;
   } catch (error) {
     console.error('❌ Failed to load exams:', error);
-    
-    // Возвращаем пустой массив в случае ошибки
-    // В реальном приложении можно показать уведомление пользователю
     return [];
   }
 };
@@ -167,15 +178,18 @@ export const generateGlossaryQuiz = async (limit: number = 10): Promise<{ exam: 
     const otherTerms = glossaryTerms.filter(t => t.term !== item.term);
     const distractors = shuffleArray(otherTerms).slice(0, 3);
 
+    // Use item.id if available, otherwise fallback to synthetic but consistent ID
+    const correctId = item.id || `term_${index}_correct`;
+    
     const choices = [
-      { id: 'a', text_en: item.definition_en, text_ru: item.definition_ru, is_correct: true },
-      { id: 'b', text_en: distractors[0].definition_en, text_ru: distractors[0].definition_ru, is_correct: false },
-      { id: 'c', text_en: distractors[1].definition_en, text_ru: distractors[1].definition_ru, is_correct: false },
-      { id: 'd', text_en: distractors[2].definition_en, text_ru: distractors[2].definition_ru, is_correct: false },
+      { id: correctId, text_en: item.definition_en, text_ru: item.definition_ru, is_correct: true },
+      { id: distractors[0]?.id || `dist_0`, text_en: distractors[0]?.definition_en || '', text_ru: distractors[0]?.definition_ru || '', is_correct: false },
+      { id: distractors[1]?.id || `dist_1`, text_en: distractors[1]?.definition_en || '', text_ru: distractors[1]?.definition_ru || '', is_correct: false },
+      { id: distractors[2]?.id || `dist_2`, text_en: distractors[2]?.definition_en || '', text_ru: distractors[2]?.definition_ru || '', is_correct: false },
     ];
 
     questions.push({
-      id: `glossary_q_${index}`,
+      id: correctId, // Use the glossary item ID as the question ID
       exam_id: 'glossary_quiz',
       topic: 'Glossary',
       question_en: `What is the definition of "${item.term}"?`,
