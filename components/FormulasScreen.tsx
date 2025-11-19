@@ -45,7 +45,21 @@ const FormulasScreen: React.FC<FormulasScreenProps> = ({ onBack, language }) => 
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 sm:p-6 pb-24">
+    <motion.div 
+      className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 sm:p-6 pb-24"
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={{ left: 0, right: 0.2 }}
+      onDragEnd={(_, info) => {
+        if (info.offset.x > 100) {
+          onBack();
+        }
+      }}
+    >
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center mb-8">
           <button
@@ -89,7 +103,7 @@ const FormulasScreen: React.FC<FormulasScreenProps> = ({ onBack, language }) => 
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
