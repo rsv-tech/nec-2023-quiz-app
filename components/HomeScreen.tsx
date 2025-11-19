@@ -9,8 +9,9 @@ import { type Exam, type Progress, type User, type Language } from '../types';
 
 interface HomeScreenProps {
   onStartTest: (exam: Exam) => void;
-  onStartFullExam: () => void; // New prop
-  onOpenGlossary: () => void; // New prop
+  onStartFullExam: () => void;
+  onOpenGlossary: () => void;
+  onOpenFormulas: () => void; // New prop
   user: User | null;
   onUpgradeClick: () => void;
   language: Language;
@@ -19,6 +20,7 @@ interface HomeScreenProps {
 
 /** ------------ i18n ------------ */
 const t = (lang: Language) => ({
+  // ... (existing translations)
   title: 'NEC 2023 Practice',
   subtitle: lang === 'en' ? 'Choose a topic to begin your test.' : 'Выберите тему, чтобы начать тест.',
   trial: (days: number) =>
@@ -48,9 +50,13 @@ const t = (lang: Language) => ({
       questionsDesc: lang === 'en' ? 'Practice by topic' : 'Практика по темам',
       exam: lang === 'en' ? 'Exam Emulation' : 'Эмуляция Экзамена',
       examDesc: lang === 'en' ? '4-hour full simulation' : '4-часовая полная симуляция',
+      formulas: lang === 'en' ? 'Formulas' : 'Формулы',
+      formulasDesc: lang === 'en' ? 'Common electrical formulas' : 'Основные электрические формулы',
       back: lang === 'en' ? 'Back to Menu' : 'Назад в меню',
   }
 });
+
+// ... (rest of file)
 
 /** ------------ Категории (жёстко сопоставлены с титулами тем) ------------ */
 const categories: { [key: string]: string[] } = {
@@ -269,16 +275,17 @@ const AccordionItem: React.FC<{
   );
 };
 
-/** ------------ Главный экран ------------ */
 const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartTest,
   onStartFullExam,
   onOpenGlossary,
+  onOpenFormulas,
   user,
   onUpgradeClick,
   language,
   onLogout,
 }) => {
+  // ... (existing state and hooks)
   const tr = t(language);
 
   const [view, setView] = useState<'menu' | 'topics'>('menu');
@@ -290,7 +297,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
-  // ---- триал/дневной лимит
+  // ... (existing useMemo hooks)
   const { isTrialActive, trialDaysRemaining, questionsUsedToday, dailyLimit, canTakeTest } = useMemo(() => {
     if (!user)
       return { isTrialActive: false, trialDaysRemaining: 0, questionsUsedToday: 0, dailyLimit: 30, canTakeTest: false };
@@ -326,13 +333,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, [user]);
 
-  // дебаунс поиска
+  // ... (existing useEffects)
   useEffect(() => {
     const h = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
     return () => clearTimeout(h);
   }, [searchTerm]);
 
-  // загрузка экзаменов/прогресса
   useEffect(() => {
     const run = async () => {
       setLoading(true);
@@ -350,7 +356,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     run();
   }, []);
 
-  // общий прогресс
+  // ... (existing overall and filteredExams)
   const overall = useMemo(() => {
     const totalPossible = exams.reduce((s, e) => s + e.num_questions, 0);
     const totalCorrect = Object.values(progress).reduce((s, p) => s + p.correct, 0);
@@ -358,7 +364,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     return { totalPossible, totalCorrect, percentage: pct };
   }, [exams, progress]);
 
-  // фильтры/категории
   const filteredExams = useMemo(() => {
     if (!debouncedSearchTerm) return exams;
     const q = debouncedSearchTerm.toLowerCase();
@@ -420,7 +425,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Main Menu View */}
       {view === 'menu' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mt-4 md:mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 mt-4 md:mt-8 max-w-4xl mx-auto">
               {/* Glossary */}
               <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
                   <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
@@ -446,6 +451,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   </div>
                   <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.exam}</h3>
                   <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
+              </Card>
+
+              {/* Formulas */}
+              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenFormulas}>
+                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
+                      📐
+                  </div>
+                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.formulas}</h3>
+                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.formulasDesc}</p>
               </Card>
           </div>
       )}
