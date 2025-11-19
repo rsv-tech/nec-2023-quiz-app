@@ -425,43 +425,64 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Main Menu View */}
       {view === 'menu' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 mt-4 md:mt-8 max-w-4xl mx-auto">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 mt-4 md:mt-8 max-w-4xl mx-auto"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
+              }
+            }}
+          >
               {/* Glossary */}
-              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
-                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
-                      📚
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.glossary}</h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.glossaryDesc}</p>
-              </Card>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenGlossary}>
+                    <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
+                        📚
+                    </div>
+                    <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.glossary}</h3>
+                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.glossaryDesc}</p>
+                </Card>
+              </motion.div>
 
               {/* Questions */}
-              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={() => setView('topics')}>
-                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
-                      📝
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.questions}</h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.questionsDesc}</p>
-              </Card>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={() => setView('topics')}>
+                    <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
+                        📝
+                    </div>
+                    <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.questions}</h3>
+                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.questionsDesc}</p>
+                </Card>
+              </motion.div>
 
               {/* Exam Emulation */}
-              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onStartFullExam}>
-                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
-                      ⏱️
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.exam}</h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
-              </Card>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onStartFullExam}>
+                    <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
+                        ⏱️
+                    </div>
+                    <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.exam}</h3>
+                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.examDesc}</p>
+                </Card>
+              </motion.div>
 
               {/* Formulas */}
-              <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenFormulas}>
-                  <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
-                      📐
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.formulas}</h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.formulasDesc}</p>
-              </Card>
-          </div>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <Card className="p-4 md:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer bg-white/40 dark:bg-gray-800/40" onClick={onOpenFormulas}>
+                    <div className="w-12 h-12 md:w-16 md:h-16 mb-3 md:mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-2xl md:text-3xl">
+                        📐
+                    </div>
+                    <h3 className="text-lg md:text-xl font-bold mb-1 md:mb-2">{tr.menu.formulas}</h3>
+                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{tr.menu.formulasDesc}</p>
+                </Card>
+              </motion.div>
+          </motion.div>
       )}
 
       {/* Topics View (Existing Content) */}
